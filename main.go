@@ -66,7 +66,7 @@ type Payload struct {
 	DestOrg          string  `json:"dest_org"`
 	DestPort         int     `json:"dest_port"`
 	DestPostalCode   string  `json:"dest_postal_code"`
-	DestRegion       int     `json:"dest_region"`
+	DestRegion       string  `json:"dest_region"`
 	DestRegionName   string  `json:"dest_region_name"`
 	DestTimeZone     string  `json:"dest_time_zone"`
 
@@ -128,7 +128,7 @@ type Payload struct {
 	SrcOrg          string  `json:"src_org"`
 	SrcPort         int     `json:"src_port"`
 	SrcPostalCode   string  `json:"src_postal_code"`
-	SrcRegion       int     `json:"src_region"`
+	SrcRegion       string  `json:"src_region"`
 	SrcRegionName   string  `json:"src_region_name"`
 	SrcTimeZone     string  `json:"src_time_zone"`
 
