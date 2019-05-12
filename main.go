@@ -27,6 +27,7 @@ func main() {
 	flag.StringVar(&auth, "secret", "test-secret", "ident secret")
 	flag.StringVar(&channel, "channel", "test-channel", "channel to subscribe to")
 	flag.StringVar(&ElasticURL, "elastic-url", "http://127.0.0.1:9200", "Elastic Search to connect to")
+	flag.BoolVar(&init, "init-index", false, "Initialize index")
 
 	flag.Parse()
 
@@ -34,7 +35,12 @@ func main() {
 	hp.Log = true
 	messages := make(chan hpfeeds.Message)
 
-	go processPayloads(messages, ElasticURL)
+	client, err := elastic.NewClient(elastic.SetURL(elasticURL))
+	if err != nil {
+		log.Fatalf("Error creating new elastic client: %v", err)
+	}
+
+	go processPayloads(messages, client)
 
 	for {
 		fmt.Println("Connecting to hpfeeds server.")
@@ -48,6 +54,34 @@ func main() {
 		fmt.Println("Disconnected, attempting to reconnect in 10 seconds...")
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func initIndex(client *elastic.Client) {
+	// Create a new index.
+	mapping := `{
+		"settings":{
+			"number_of_shards":1,
+			"number_of_replicas":0
+		},
+		"mappings":{
+			"tweet":{
+				"properties":{
+					"tags":{
+						"type":"string"
+					},
+					"location":{
+						"type":"geo_point"
+					},
+					"suggest_field":{
+						"type":"completion",
+						"payloads":true
+					}
+				}
+			}
+		}
+	}`
+
+	client.CreateIndex()
 }
 
 type Payload struct {
@@ -146,7 +180,7 @@ type Payload struct {
 	TCPFlags string `json:"tcp_flags,omitempty"`
 	TCPLen   int    `json:"tcp_len,omitempty"`
 
-	Timestamp string `json:"timestamp"`
+	Timestamp int64 `json:"timestamp"`
 
 	Transport string `json:"transport"`
 	Type      string `json:"type"`
@@ -160,12 +194,7 @@ type Payload struct {
 	VendorProduct string `json:"vendor_product"`
 }
 
-func processPayloads(messages chan hpfeeds.Message, elasticURL string) {
-	client, err := elastic.NewClient(elastic.SetURL(elasticURL))
-	if err != nil {
-		log.Fatalf("Error creating new elastic client: %v", err)
-	}
-
+func processPayloads(messages chan hpfeeds.Message, client *elastic.Client) {
 	n := 0
 
 	bulkRequest := client.Bulk()
@@ -181,9 +210,9 @@ func processPayloads(messages chan hpfeeds.Message, elasticURL string) {
 
 		p.DestLocation = fmt.Sprintf("%f,%f", p.DestLatitude, p.DestLongitude)
 		p.SrcLocation = fmt.Sprintf("%f,%f", p.SrcLatitude, p.SrcLongitude)
-		p.Timestamp = time.Now().String()
+		p.Timestamp = time.Now().Unix()
 
-		req := elastic.NewBulkIndexRequest().Index("mhn-" + p.App).Type("json").Doc(p)
+		req := elastic.NewBulkIndexRequest().Index("mhn-" + p.App).Type("attack").Doc(p)
 		bulkRequest = bulkRequest.Add(req)
 
 		if n%100 == 0 {
