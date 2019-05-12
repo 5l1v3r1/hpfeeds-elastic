@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -12,22 +13,30 @@ import (
 	"github.com/olivere/elastic"
 )
 
+const MHNIndexName = "mhn-community-data"
+
+var (
+	host         string
+	port         int
+	ident        string
+	auth         string
+	channel      string
+	elasticURL   string
+	initMapping  bool
+	initOverride bool
+	mappingFile  string
+)
+
 func main() {
-	var (
-		host       string
-		port       int
-		ident      string
-		auth       string
-		channel    string
-		ElasticURL string
-	)
 	flag.StringVar(&host, "host", "mhnbroker.threatstream.com", "target host")
 	flag.IntVar(&port, "port", 10000, "hpfeeds port")
 	flag.StringVar(&ident, "ident", "test-ident", "ident username")
 	flag.StringVar(&auth, "secret", "test-secret", "ident secret")
 	flag.StringVar(&channel, "channel", "test-channel", "channel to subscribe to")
-	flag.StringVar(&ElasticURL, "elastic-url", "http://127.0.0.1:9200", "Elastic Search to connect to")
-	flag.BoolVar(&init, "init-index", false, "Initialize index")
+	flag.StringVar(&elasticURL, "elastic-url", "http://127.0.0.1:9200", "Elastic Search to connect to")
+	flag.BoolVar(&initMapping, "init", false, "Initialize index")
+	flag.BoolVar(&initOverride, "init-override", false, "Delete a previously matching index and override")
+	flag.StringVar(&mappingFile, "mapping-file", "map.json", "JSON file for index mapping")
 
 	flag.Parse()
 
@@ -38,6 +47,14 @@ func main() {
 	client, err := elastic.NewClient(elastic.SetURL(elasticURL))
 	if err != nil {
 		log.Fatalf("Error creating new elastic client: %v", err)
+	}
+
+	// Check if we need to init the index with a mapping file
+	if initMapping {
+		if initOverride {
+			deleteIndex(client)
+		}
+		createIndex(client, mappingFile)
 	}
 
 	go processPayloads(messages, client)
@@ -56,32 +73,39 @@ func main() {
 	}
 }
 
-func initIndex(client *elastic.Client) {
-	// Create a new index.
-	mapping := `{
-		"settings":{
-			"number_of_shards":1,
-			"number_of_replicas":0
-		},
-		"mappings":{
-			"tweet":{
-				"properties":{
-					"tags":{
-						"type":"string"
-					},
-					"location":{
-						"type":"geo_point"
-					},
-					"suggest_field":{
-						"type":"completion",
-						"payloads":true
-					}
-				}
-			}
-		}
-	}`
+func deleteIndex(client *elastic.Client) {
+	ctx := context.Background()
+	deleteIndex, err := client.DeleteIndex(MHNIndexName).Do(ctx)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	if !deleteIndex.Acknowledged {
+		// Not acknowledged
+		log.Fatal("Delete index: Not acknowledged")
+	}
+}
 
-	client.CreateIndex()
+func createIndex(client *elastic.Client, mappingFile string) {
+	buf, err := ioutil.ReadFile(mappingFile)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	if !json.Valid(buf) {
+		log.Fatal("JSON in mapping file invalid")
+	}
+
+	ctx := context.Background()
+
+	createIndex, err := client.CreateIndex(MHNIndexName).Body(string(buf)).Do(ctx)
+	if err != nil {
+		// Handle error
+		log.Fatal(err.Error())
+	}
+	if !createIndex.Acknowledged {
+		// Not acknowledged
+		log.Fatal("Create index: Not acknowledged")
+	}
 }
 
 type Payload struct {
@@ -180,7 +204,7 @@ type Payload struct {
 	TCPFlags string `json:"tcp_flags,omitempty"`
 	TCPLen   int    `json:"tcp_len,omitempty"`
 
-	Timestamp int64 `json:"timestamp"`
+	Timestamp string `json:"timestamp"`
 
 	Transport string `json:"transport"`
 	Type      string `json:"type"`
@@ -203,16 +227,17 @@ func processPayloads(messages chan hpfeeds.Message, client *elastic.Client) {
 	for mes := range messages {
 		n++
 
-		if err = json.Unmarshal(mes.Payload, &p); err != nil {
+		if err := json.Unmarshal(mes.Payload, &p); err != nil {
 			log.Printf("Error unmarshaling json: %s\n", err.Error())
+			log.Printf(string(mes.Payload))
 			continue
 		}
 
 		p.DestLocation = fmt.Sprintf("%f,%f", p.DestLatitude, p.DestLongitude)
 		p.SrcLocation = fmt.Sprintf("%f,%f", p.SrcLatitude, p.SrcLongitude)
-		p.Timestamp = time.Now().Unix()
+		p.Timestamp = time.Now().Format(time.RFC3339)
 
-		req := elastic.NewBulkIndexRequest().Index("mhn-" + p.App).Type("attack").Doc(p)
+		req := elastic.NewBulkIndexRequest().Index(MHNIndexName).Type("attack").Doc(p)
 		bulkRequest = bulkRequest.Add(req)
 
 		if n%100 == 0 {
