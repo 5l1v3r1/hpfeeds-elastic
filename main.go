@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/d1str0/hpfeeds"
-	"github.com/olivere/elastic"
+	"github.com/olivere/elastic/v7"
 )
 
 const MHNIndexName = "mhn-community-data"
@@ -62,6 +62,7 @@ func main() {
 	for {
 		fmt.Println("Connecting to hpfeeds server.")
 		hp.Connect()
+		fmt.Println("Connected.")
 
 		// Subscribe to "flotest" and print everything coming in on it
 		hp.Subscribe(channel, messages)
@@ -237,7 +238,7 @@ func processPayloads(messages chan hpfeeds.Message, client *elastic.Client) {
 		p.SrcLocation = fmt.Sprintf("%f,%f", p.SrcLatitude, p.SrcLongitude)
 		p.Timestamp = time.Now().Format(time.RFC3339)
 
-		req := elastic.NewBulkIndexRequest().Index(MHNIndexName).Type("attack").Doc(p)
+		req := elastic.NewBulkIndexRequest().Index(MHNIndexName).Type("_doc").Doc(p)
 		bulkRequest = bulkRequest.Add(req)
 
 		if n%100 == 0 {

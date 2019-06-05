@@ -1,29 +1,27 @@
 {
 	"mappings":{
-		"attack":{
-			"properties":{
-				"dest_location":{
-					"type":"geo_point"
-				},
-                "dest_latitude": {
-                    "type": "double"
-                },
-                "dest_longitude": {
-                    "type": "double"
-                },
-				"src_location":{
-					"type":"geo_point"
-				},
-                "src_latitude": {
-                    "type": "double"
-                },
-                "src_longitude": {
-                    "type": "double"
-                },
-				"timestamp":{
-					"type":"date"
-				}
-			}
-		}
-	}
+        "properties":{
+            "dest_location":{
+                "type":"geo_point"
+            },
+            "dest_latitude": {
+                "type": "double"
+            },
+            "dest_longitude": {
+                "type": "double"
+            },
+            "src_location":{
+                "type":"geo_point"
+            },
+            "src_latitude": {
+                "type": "double"
+            },
+            "src_longitude": {
+                "type": "double"
+            },
+            "timestamp":{
+                "type":"date"
+            }
+        }
+    }
 }
