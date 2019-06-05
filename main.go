@@ -13,6 +13,7 @@ import (
 	"github.com/olivere/elastic/v7"
 )
 
+const Version = "v0.0.1"
 const MHNIndexName = "mhn-community-data"
 
 var (
@@ -28,6 +29,9 @@ var (
 )
 
 func main() {
+	fmt.Printf("///- Running hpfeeds-elastic ingester\n")
+	fmt.Printf("///- Version: %s\n", Version)
+
 	flag.StringVar(&host, "host", "mhnbroker.threatstream.com", "target host")
 	flag.IntVar(&port, "port", 10000, "hpfeeds port")
 	flag.StringVar(&ident, "ident", "test-ident", "ident username")
