@@ -13,8 +13,21 @@ import (
 	"github.com/olivere/elastic/v7"
 )
 
-const Version = "v0.0.1"
-const MHNIndexName = "mhn-community-data"
+const Version = "v0.0.2"
+const MHNIndexName = "mhn-community-data-"
+
+var Apps = []string{
+	"agave",
+	"dionaea",
+	"p0f",
+	"amun",
+	"kippo",
+	"cowrie",
+	"snort",
+	"conpot",
+	"suricata",
+	"elastichoney",
+}
 
 var (
 	host         string
@@ -80,13 +93,16 @@ func main() {
 
 func deleteIndex(client *elastic.Client) {
 	ctx := context.Background()
-	deleteIndex, err := client.DeleteIndex(MHNIndexName).Do(ctx)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	if !deleteIndex.Acknowledged {
-		// Not acknowledged
-		log.Fatal("Delete index: Not acknowledged")
+	for _, app := range Apps {
+		index := fmt.Sprintf("%s%s", MHNIndexName, app)
+		deleteIndex, err := client.DeleteIndex(index).Do(ctx)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		if !deleteIndex.Acknowledged {
+			// Not acknowledged
+			log.Fatal("Delete index: Not acknowledged")
+		}
 	}
 }
 
@@ -102,14 +118,17 @@ func createIndex(client *elastic.Client, mappingFile string) {
 
 	ctx := context.Background()
 
-	createIndex, err := client.CreateIndex(MHNIndexName).Body(string(buf)).Do(ctx)
-	if err != nil {
-		// Handle error
-		log.Fatal(err.Error())
-	}
-	if !createIndex.Acknowledged {
-		// Not acknowledged
-		log.Fatal("Create index: Not acknowledged")
+	for _, app := range Apps {
+		index := fmt.Sprintf("%s%s", MHNIndexName, app)
+		createIndex, err := client.CreateIndex(index).Body(string(buf)).Do(ctx)
+		if err != nil {
+			// Handle error
+			log.Fatal(err.Error())
+		}
+		if !createIndex.Acknowledged {
+			// Not acknowledged
+			log.Fatal("Create index: Not acknowledged")
+		}
 	}
 }
 
@@ -242,7 +261,8 @@ func processPayloads(messages chan hpfeeds.Message, client *elastic.Client) {
 		p.SrcLocation = fmt.Sprintf("%f,%f", p.SrcLatitude, p.SrcLongitude)
 		p.Timestamp = time.Now().Format(time.RFC3339)
 
-		req := elastic.NewBulkIndexRequest().Index(MHNIndexName).Type("_doc").Doc(p)
+		index := fmt.Sprintf("%s%s", MHNIndexName, p.App)
+		req := elastic.NewBulkIndexRequest().Index(index).Type("_doc").Doc(p)
 		bulkRequest = bulkRequest.Add(req)
 
 		if n%100 == 0 {
