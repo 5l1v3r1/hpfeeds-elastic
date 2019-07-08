@@ -27,6 +27,8 @@ var Apps = []string{
 	"conpot",
 	"suricata",
 	"elastichoney",
+	"kippo",
+	"wordpot",
 }
 
 var (
