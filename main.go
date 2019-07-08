@@ -186,6 +186,8 @@ func processPayloads(messages chan hpfeeds.Message, client *elastic.Client) {
 				log.Printf("Done with %d records\n", n)
 			}
 
+			n = 0
+
 		}
 	}
 }
