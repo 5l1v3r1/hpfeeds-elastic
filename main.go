@@ -99,11 +99,11 @@ func deleteIndex(client *elastic.Client) {
 		index := fmt.Sprintf("%s%s", MHNIndexName, app)
 		deleteIndex, err := client.DeleteIndex(index).Do(ctx)
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Print(err.Error())
 		}
 		if !deleteIndex.Acknowledged {
 			// Not acknowledged
-			log.Fatal("Delete index: Not acknowledged")
+			log.Print("Delete index: Not acknowledged")
 		}
 	}
 }
@@ -111,11 +111,11 @@ func deleteIndex(client *elastic.Client) {
 func createIndex(client *elastic.Client, mappingFile string) {
 	buf, err := ioutil.ReadFile(mappingFile)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Print(err.Error())
 	}
 
 	if !json.Valid(buf) {
-		log.Fatal("JSON in mapping file invalid")
+		log.Print("JSON in mapping file invalid")
 	}
 
 	ctx := context.Background()
@@ -125,11 +125,11 @@ func createIndex(client *elastic.Client, mappingFile string) {
 		createIndex, err := client.CreateIndex(index).Body(string(buf)).Do(ctx)
 		if err != nil {
 			// Handle error
-			log.Fatal(err.Error())
+			log.Print(err.Error())
 		}
 		if !createIndex.Acknowledged {
 			// Not acknowledged
-			log.Fatal("Create index: Not acknowledged")
+			log.Print("Create index: Not acknowledged")
 		}
 	}
 }
